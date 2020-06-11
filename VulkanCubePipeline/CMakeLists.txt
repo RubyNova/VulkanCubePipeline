@@ -9,7 +9,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 
 # Add source to this project's executable.
-add_executable (VulkanCubePipeline "VulkanCubePipeline.cpp" "VulkanCubePipeline.h" "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h")
+add_executable (VulkanCubePipeline "VulkanCubePipeline.cpp" "VulkanCubePipeline.h" "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h" "include/QueueFamilyIndices.h" "include/SwapChainSupportDetails.h" "include/FileLoadingService.h")
 target_link_libraries(VulkanCubePipeline Vulkan::Vulkan glfw glm)
 
 # TODO: Add tests and install targets if needed.

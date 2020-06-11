@@ -12,6 +12,13 @@
 #include <iostream>
 #include <cstdint>
 #include <vector>
+#include <map>
+#include <set>
+#include <algorithm>
+
+#include "QueueFamilyIndices.h"
+#include "SwapChainSupportDetails.h"
+#include "FileLoadingService.h"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -29,11 +36,44 @@ private:
 	std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> _window;
 	const uint32_t _width = 800;
 	const uint32_t _height = 600;
+	static inline const int32_t INVALID_PHYISCAL_VK_DEVICE = -1;
+
 	VkInstance _instance;
 	VkDebugUtilsMessengerEXT _debugMessenger;
+	VkPhysicalDevice _physicalDevice;
+	VkDevice _logicalDevice;
+
+	VkQueue _graphicsQueue;
+	VkQueue _presentQueue;
+
+	VkSurfaceKHR _surface;
+
+	VkSwapchainKHR swapChain;
+	std::vector<VkImage> _swapChainImages;
+	VkFormat _swapChainImageFormat;
+	VkExtent2D _swapChainExtent;
+
+	std::vector<VkImageView> _swapChainImageViews;
+
+	VkRenderPass _renderPass;
+	VkPipelineLayout _pipelineLayout;
+	VkPipeline _graphicsPipeline;
+
+	std::vector<VkFramebuffer> _swapChainFramebuffers;
+
+	VkCommandPool _commandPool;
+
+	std::vector<VkCommandBuffer> _commandBuffers;
+
+	VkSemaphore _imageAvailableSemaphore;
+	VkSemaphore _renderFinishedSemaphore;
 
 	const std::vector<const char*> _validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
+	};
+
+	const std::vector<const char*> _deviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
 #ifdef NDEBUG
@@ -69,12 +109,47 @@ private:
 	}
 
 	void initWindow();
+
 	bool checkValidationLayerSupport();
 	void createInstance();
 	void setupDebugMessenger();
+
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+	int32_t rateDeviceSuitability(VkPhysicalDevice device);
+
+	void pickPhysicalDevice();
+	void createLogicalDevice();
+	void createSurface();
+
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+	void createSwapChain();
+
+	void createImageViews();
+
+	void createRenderPass();
+
+	VkShaderModule createShaderModule(const std::vector<char>& spirvBytecode);
+	void createGraphicsPipeline();
+
+	void createFrameBuffers();
+
+	void createCommandPool();
+
+	void createCommandBuffers();
+
+	void createSemaphores();
+
 	void initVulkan();
+
+	void drawFrame();
 	void mainLoop();
 	void cleanup();
+
 public:
 	VulkanPipelineService() noexcept;
 	void launch();

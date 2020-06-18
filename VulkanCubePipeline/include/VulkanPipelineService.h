@@ -19,6 +19,8 @@
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
 #include "FileLoadingService.h"
+#include "Camera.h"
+#include "Vertex.h"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -33,10 +35,16 @@ inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 class VulkanPipelineService {
 private:
+	Camera _camera;
+
 	std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> _window;
 	const uint32_t _width = 800;
 	const uint32_t _height = 600;
 	static inline const int32_t INVALID_PHYISCAL_VK_DEVICE = -1;
+	static inline const int32_t MAX_FRAMES_IN_FLIGHT = 2;
+	size_t _currentFrame = 0;
+
+	bool _frameBufferResized = false;
 
 	VkInstance _instance;
 	VkDebugUtilsMessengerEXT _debugMessenger;
@@ -65,15 +73,34 @@ private:
 
 	std::vector<VkCommandBuffer> _commandBuffers;
 
-	VkSemaphore _imageAvailableSemaphore;
-	VkSemaphore _renderFinishedSemaphore;
+	std::vector<VkSemaphore> _imageAvailableSemaphores;
+	std::vector<VkSemaphore> _renderFinishedSemaphores;
+	std::vector<VkFence> _inFlightFences;
+	std::vector<VkFence> _imagesInFlight;
+
+	VkBuffer _vertexBuffer;
+	VkDeviceMemory _vertexBufferMemory;
+
+	VkBuffer _indexBuffer;
+	VkDeviceMemory _indexBufferMemory;
 
 	const std::vector<const char*> _validationLayers = {
-	"VK_LAYER_KHRONOS_validation"
+		"VK_LAYER_KHRONOS_validation"
 	};
 
 	const std::vector<const char*> _deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
+
+	const std::vector<Vertex> _vertices = {
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+	};
+
+	const std::vector<uint16_t> indices = {
+		0, 1, 2, 2, 3, 0
 	};
 
 #ifdef NDEBUG
@@ -108,6 +135,11 @@ private:
 		return createInfo;
 	}
 
+	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+		auto app = reinterpret_cast<VulkanPipelineService*>(glfwGetWindowUserPointer(window));
+		app->_frameBufferResized = true;
+	}
+
 	void initWindow();
 
 	bool checkValidationLayerSupport();
@@ -140,9 +172,20 @@ private:
 
 	void createCommandPool();
 
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+	void createVertexBuffer();
+
+	void createIndexBuffer();
+
 	void createCommandBuffers();
 
-	void createSemaphores();
+	void createSyncObjects();
+
+	void cleanupSwapChain();
+
+	void recreateSwapChain();
 
 	void initVulkan();
 

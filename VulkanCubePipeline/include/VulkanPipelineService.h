@@ -6,21 +6,24 @@
 #include <vulkan/vulkan.h>
 
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <cstdint>
 #include <vector>
 #include <map>
 #include <set>
 #include <algorithm>
+#include <chrono>
 
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
 #include "FileLoadingService.h"
 #include "Camera.h"
 #include "Vertex.h"
+#include "UniformBufferObject.h"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -64,6 +67,9 @@ private:
 	std::vector<VkImageView> _swapChainImageViews;
 
 	VkRenderPass _renderPass;
+	VkDescriptorSetLayout _descriptorSetLayout;
+	VkDescriptorPool _descriptorPool;
+	std::vector<VkDescriptorSet> _descriptorSets;
 	VkPipelineLayout _pipelineLayout;
 	VkPipeline _graphicsPipeline;
 
@@ -83,6 +89,9 @@ private:
 
 	VkBuffer _indexBuffer;
 	VkDeviceMemory _indexBufferMemory;
+
+	std::vector<VkBuffer> _uniformBuffers;
+	std::vector<VkDeviceMemory> _uniformBuffersMemory;
 
 	const std::vector<const char*> _validationLayers = {
 		"VK_LAYER_KHRONOS_validation"
@@ -165,6 +174,8 @@ private:
 
 	void createRenderPass();
 
+	void createDescriptorSetLayout();
+
 	VkShaderModule createShaderModule(const std::vector<char>& spirvBytecode);
 	void createGraphicsPipeline();
 
@@ -179,6 +190,12 @@ private:
 
 	void createIndexBuffer();
 
+	void createUniformBuffers();
+
+	void createDescriptorPool();
+
+	void createDescriptorSets();
+
 	void createCommandBuffers();
 
 	void createSyncObjects();
@@ -189,8 +206,11 @@ private:
 
 	void initVulkan();
 
+	void updateUniformBuffer(uint32_t currentImage);
 	void drawFrame();
+
 	void mainLoop();
+
 	void cleanup();
 
 public:

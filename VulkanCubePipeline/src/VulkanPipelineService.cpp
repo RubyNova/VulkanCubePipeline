@@ -1049,13 +1049,13 @@ void VulkanPipelineService::createIndexBuffer() {
 }
 
 void VulkanPipelineService::createUniformBuffers() {
-    VkDeviceSize mvpBufferSize = sizeof(MvpBufferObject);
+    VkDeviceSize cameraBufferSize = sizeof(CameraBufferObject);
 
-    _mvpBuffers.resize(_swapChainImages.size());
-    _mvpBuffersMemory.resize(_swapChainImages.size());
+    _cameraBuffers.resize(_swapChainImages.size());
+    _cameraBuffersMemory.resize(_swapChainImages.size());
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        createBuffer(mvpBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _mvpBuffers[i], _mvpBuffersMemory[i]);
+        createBuffer(cameraBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _cameraBuffers[i], _cameraBuffersMemory[i]);
     }
 
     VkDeviceSize transformBufferSize = sizeof(glm::mat4) * 2;
@@ -1102,10 +1102,10 @@ void VulkanPipelineService::createDescriptorSets() {
     }
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        VkDescriptorBufferInfo mvpBufferInfo{};
-        mvpBufferInfo.buffer = _mvpBuffers[i];
-        mvpBufferInfo.offset = 0;
-        mvpBufferInfo.range = sizeof(MvpBufferObject);
+        VkDescriptorBufferInfo cameraBufferInfo{};
+        cameraBufferInfo.buffer = _cameraBuffers[i];
+        cameraBufferInfo.offset = 0;
+        cameraBufferInfo.range = sizeof(CameraBufferObject);
 
         VkDescriptorBufferInfo transformBufferInfo{};
         transformBufferInfo.buffer = _transformBuffers[i];
@@ -1125,7 +1125,7 @@ void VulkanPipelineService::createDescriptorSets() {
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &mvpBufferInfo;
+        descriptorWrites[0].pBufferInfo = &cameraBufferInfo;
         descriptorWrites[0].pImageInfo = nullptr; // Optional
         descriptorWrites[0].pTexelBufferView = nullptr; // Optional
 
@@ -1257,8 +1257,8 @@ void VulkanPipelineService::cleanupSwapChain() {
     vkDestroySwapchainKHR(_logicalDevice, swapChain, nullptr);
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        vkDestroyBuffer(_logicalDevice, _mvpBuffers[i], nullptr);
-        vkFreeMemory(_logicalDevice, _mvpBuffersMemory[i], nullptr);
+        vkDestroyBuffer(_logicalDevice, _cameraBuffers[i], nullptr);
+        vkFreeMemory(_logicalDevice, _cameraBuffersMemory[i], nullptr);
     }
 
     vkDestroyDescriptorPool(_logicalDevice, _descriptorPool, nullptr);
@@ -1314,22 +1314,21 @@ void VulkanPipelineService::initVulkan() {
     createSyncObjects();
 }
 
-void VulkanPipelineService::updateMvpUniformBuffer(uint32_t currentImage) {
+void VulkanPipelineService::updateCameraUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    MvpBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
+    CameraBufferObject ubo{};
+    ubo.view = glm::lookAt(glm::vec3(4.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
     void* data;
-    vkMapMemory(_logicalDevice, _mvpBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
+    vkMapMemory(_logicalDevice, _cameraBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_logicalDevice, _mvpBuffersMemory[currentImage]);
+    vkUnmapMemory(_logicalDevice, _cameraBuffersMemory[currentImage]);
 }
 
 void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) {
@@ -1338,7 +1337,7 @@ void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    _transformData[0] = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //_transformData[0] = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
     uint32_t transformCollectionSize = sizeof(glm::mat4) * static_cast<uint32_t>(_transformData.size());
     void* data;
@@ -1369,7 +1368,7 @@ void VulkanPipelineService::drawFrame() {
 
     _imagesInFlight[imageIndex] = _inFlightFences[_currentFrame];
 
-    updateMvpUniformBuffer(imageIndex);
+    updateCameraUniformBuffer(imageIndex);
     updateTransformUniformBuffer(imageIndex);
 
     VkSubmitInfo submitInfo{};
@@ -1468,6 +1467,7 @@ VulkanPipelineService::VulkanPipelineService() noexcept : _window(nullptr, nullp
 }
 
 void VulkanPipelineService::launch() {
+    initVoxelData();
     initWindow();
     initVulkan();
     mainLoop();

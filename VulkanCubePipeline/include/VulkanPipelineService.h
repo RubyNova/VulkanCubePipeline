@@ -21,9 +21,8 @@
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
 #include "FileLoadingService.h"
-#include "Camera.h"
 #include "Vertex.h"
-#include "MvpBufferObject.h"
+#include "CameraBufferObject.h"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -38,11 +37,9 @@ inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 class VulkanPipelineService {
 private:
-	Camera _camera;
-
 	std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> _window;
-	const uint32_t _width = 800;
-	const uint32_t _height = 600;
+	const uint32_t _width = 3120 / 2; //TODO: Fix this for my actual screen
+	const uint32_t _height = 1440 / 2;
 	static inline const int32_t INVALID_PHYISCAL_VK_DEVICE = -1;
 	static inline const int32_t MAX_FRAMES_IN_FLIGHT = 2;
 	size_t _currentFrame = 0;
@@ -90,8 +87,8 @@ private:
 	VkBuffer _indexBuffer;
 	VkDeviceMemory _indexBufferMemory;
 
-	std::vector<VkBuffer> _mvpBuffers;
-	std::vector<VkDeviceMemory> _mvpBuffersMemory;
+	std::vector<VkBuffer> _cameraBuffers;
+	std::vector<VkDeviceMemory> _cameraBuffersMemory;
 
 	std::vector<VkBuffer> _transformBuffers;
 	std::vector<VkDeviceMemory> _transformBuffersMemory;
@@ -160,6 +157,8 @@ private:
 		glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
 	};
 
+	//std::vector<glm::mat4> _transformData;
+
 #ifdef NDEBUG
 	const bool _enableValidationLayers = false;
 #else
@@ -196,6 +195,8 @@ private:
 		auto app = reinterpret_cast<VulkanPipelineService*>(glfwGetWindowUserPointer(window));
 		app->_frameBufferResized = true;
 	}
+
+	void initVoxelData();
 
 	void initWindow();
 
@@ -271,7 +272,7 @@ private:
 
 	void initVulkan();
 
-	void updateMvpUniformBuffer(uint32_t currentImage);
+	void updateCameraUniformBuffer(uint32_t currentImage);
 	void updateTransformUniformBuffer(uint32_t currentImage);
 	void drawFrame();
 

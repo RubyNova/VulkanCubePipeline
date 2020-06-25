@@ -142,7 +142,7 @@ void VulkanPipelineService::setupDebugMessenger() {
 }
 
 QueueFamilyIndices VulkanPipelineService::findQueueFamilies(VkPhysicalDevice device) {
-    QueueFamilyIndices indices;
+    QueueFamilyIndices _indices;
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -153,20 +153,20 @@ QueueFamilyIndices VulkanPipelineService::findQueueFamilies(VkPhysicalDevice dev
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
+            _indices.graphicsFamily = i;
         }
 
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface, &presentSupport);
 
         if (presentSupport) {
-            indices.presentFamily = i;
+            _indices.presentFamily = i;
         }
 
         i++;
     }
 
-    return indices;
+    return _indices;
 }
 
 SwapChainSupportDetails VulkanPipelineService::querySwapChainSupport(VkPhysicalDevice device) {
@@ -226,10 +226,10 @@ int32_t VulkanPipelineService::rateDeviceSuitability(VkPhysicalDevice device) {
     score += deviceProperties.limits.maxImageDimension2D;
 
     // We require certain families to exist, which are contained in a struct. -1 is assigned if its not useable.
-    QueueFamilyIndices indices = findQueueFamilies(device);
+    QueueFamilyIndices _indices = findQueueFamilies(device);
 
     //check its a valid device at all.
-    if (!indices.isComplete() || !checkDeviceExtensionSupport(device) || querySwapChainSupport(device).presentModes.empty() || !deviceFeatures.geometryShader || !deviceFeatures.samplerAnisotropy) {
+    if (!_indices.isComplete() || !checkDeviceExtensionSupport(device) || querySwapChainSupport(device).presentModes.empty() || !deviceFeatures.geometryShader || !deviceFeatures.samplerAnisotropy) {
         score = INVALID_PHYISCAL_VK_DEVICE;
     }
 
@@ -271,10 +271,10 @@ void VulkanPipelineService::pickPhysicalDevice() {
 }
 
 void VulkanPipelineService::createLogicalDevice() {
-    QueueFamilyIndices indices = findQueueFamilies(_physicalDevice);
+    QueueFamilyIndices _indices = findQueueFamilies(_physicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    std::set<uint32_t> uniqueQueueFamilies = { _indices.graphicsFamily.value(), _indices.presentFamily.value() };
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -311,8 +311,8 @@ void VulkanPipelineService::createLogicalDevice() {
         throw std::runtime_error("Failed to create logical device!");
     }
 
-    vkGetDeviceQueue(_logicalDevice, indices.graphicsFamily.value(), 0, &_graphicsQueue);
-    vkGetDeviceQueue(_logicalDevice, indices.presentFamily.value(), 0, &_presentQueue);
+    vkGetDeviceQueue(_logicalDevice, _indices.graphicsFamily.value(), 0, &_graphicsQueue);
+    vkGetDeviceQueue(_logicalDevice, _indices.presentFamily.value(), 0, &_presentQueue);
 }
 
 void VulkanPipelineService::createSurface() {
@@ -384,10 +384,10 @@ void VulkanPipelineService::createSwapChain() {
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = findQueueFamilies(_physicalDevice);
-    uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    QueueFamilyIndices _indices = findQueueFamilies(_physicalDevice);
+    uint32_t queueFamilyIndices[] = { _indices.graphicsFamily.value(), _indices.presentFamily.value() };
 
-    if (indices.graphicsFamily != indices.presentFamily) {
+    if (_indices.graphicsFamily != _indices.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -517,7 +517,14 @@ void VulkanPipelineService::createDescriptorSetLayout() {
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+    VkDescriptorSetLayoutBinding transformUboLayoutBinding{};
+    uboLayoutBinding.binding = 2;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, samplerLayoutBinding, transformUboLayoutBinding };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1022,7 +1029,7 @@ void VulkanPipelineService::createVertexBuffer() {
 }
 
 void VulkanPipelineService::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    VkDeviceSize bufferSize = sizeof(_indices[0]) * _indices.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -1030,7 +1037,7 @@ void VulkanPipelineService::createIndexBuffer() {
 
     void* data;
     vkMapMemory(_logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
+    memcpy(data, _indices.data(), (size_t)bufferSize);
     vkUnmapMemory(_logicalDevice, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffer, _indexBufferMemory);
@@ -1042,22 +1049,33 @@ void VulkanPipelineService::createIndexBuffer() {
 }
 
 void VulkanPipelineService::createUniformBuffers() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize mvpBufferSize = sizeof(MvpBufferObject);
 
-    _uniformBuffers.resize(_swapChainImages.size());
-    _uniformBuffersMemory.resize(_swapChainImages.size());
+    _mvpBuffers.resize(_swapChainImages.size());
+    _mvpBuffersMemory.resize(_swapChainImages.size());
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _uniformBuffers[i], _uniformBuffersMemory[i]);
+        createBuffer(mvpBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _mvpBuffers[i], _mvpBuffersMemory[i]);
+    }
+
+    VkDeviceSize transformBufferSize = sizeof(glm::mat4) * 2;
+
+    _transformBuffers.resize(_swapChainImages.size());
+    _transformBuffersMemory.resize(_swapChainImages.size());
+
+    for (size_t i = 0; i < _swapChainImages.size(); i++) {
+        createBuffer(transformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _transformBuffers[i], _transformBuffersMemory[i]);
     }
 }
 
 void VulkanPipelineService::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[2].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1084,17 +1102,22 @@ void VulkanPipelineService::createDescriptorSets() {
     }
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = _uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        VkDescriptorBufferInfo mvpBufferInfo{};
+        mvpBufferInfo.buffer = _mvpBuffers[i];
+        mvpBufferInfo.offset = 0;
+        mvpBufferInfo.range = sizeof(MvpBufferObject);
+
+        VkDescriptorBufferInfo transformBufferInfo{};
+        transformBufferInfo.buffer = _transformBuffers[i];
+        transformBufferInfo.offset = 0;
+        transformBufferInfo.range = sizeof(glm::mat4) * 2;
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = _textureImageView;
         imageInfo.sampler = _textureSampler;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].dstSet = _descriptorSets[i];
@@ -1102,7 +1125,7 @@ void VulkanPipelineService::createDescriptorSets() {
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+        descriptorWrites[0].pBufferInfo = &mvpBufferInfo;
         descriptorWrites[0].pImageInfo = nullptr; // Optional
         descriptorWrites[0].pTexelBufferView = nullptr; // Optional
 
@@ -1113,6 +1136,16 @@ void VulkanPipelineService::createDescriptorSets() {
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites[1].descriptorCount = 1;
         descriptorWrites[1].pImageInfo = &imageInfo;
+
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = _descriptorSets[i];
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo = &transformBufferInfo;
+        descriptorWrites[2].pImageInfo = nullptr; // Optional
+        descriptorWrites[2].pTexelBufferView = nullptr; // Optional
 
         vkUpdateDescriptorSets(_logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
@@ -1165,7 +1198,7 @@ void VulkanPipelineService::createCommandBuffers() {
 
         vkCmdBindDescriptorSets(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(_indices.size()), 2, 0, 0, 0);
 
         vkCmdEndRenderPass(_commandBuffers[i]);
 
@@ -1224,8 +1257,8 @@ void VulkanPipelineService::cleanupSwapChain() {
     vkDestroySwapchainKHR(_logicalDevice, swapChain, nullptr);
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        vkDestroyBuffer(_logicalDevice, _uniformBuffers[i], nullptr);
-        vkFreeMemory(_logicalDevice, _uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(_logicalDevice, _mvpBuffers[i], nullptr);
+        vkFreeMemory(_logicalDevice, _mvpBuffersMemory[i], nullptr);
     }
 
     vkDestroyDescriptorPool(_logicalDevice, _descriptorPool, nullptr);
@@ -1281,22 +1314,36 @@ void VulkanPipelineService::initVulkan() {
     createSyncObjects();
 }
 
-void VulkanPipelineService::updateUniformBuffer(uint32_t currentImage) {
+void VulkanPipelineService::updateMvpUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    UniformBufferObject ubo{};
+    MvpBufferObject ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
     void* data;
-    vkMapMemory(_logicalDevice, _uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
+    vkMapMemory(_logicalDevice, _mvpBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_logicalDevice, _uniformBuffersMemory[currentImage]);
+    vkUnmapMemory(_logicalDevice, _mvpBuffersMemory[currentImage]);
+}
+
+void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+
+    uint32_t transformCollectionSize = static_cast<uint32_t>(_transformData.size());
+    void* data;
+    vkMapMemory(_logicalDevice, _transformBuffersMemory[currentImage], 0, transformCollectionSize, 0, &data);
+    memcpy(data, _transformData.data(), transformCollectionSize);
+    vkUnmapMemory(_logicalDevice, _transformBuffersMemory[currentImage]);
 }
 
 void VulkanPipelineService::drawFrame() {
@@ -1321,7 +1368,8 @@ void VulkanPipelineService::drawFrame() {
 
     _imagesInFlight[imageIndex] = _inFlightFences[_currentFrame];
 
-    updateUniformBuffer(imageIndex);
+    updateMvpUniformBuffer(imageIndex);
+    updateTransformUniformBuffer(imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

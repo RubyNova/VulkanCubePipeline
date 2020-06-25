@@ -13,7 +13,7 @@ find_path(STB_INCLUDES stb_image.h include)
 
 
 # Add source to this project's executable.
-add_executable (VulkanCubePipeline "VulkanCubePipeline.cpp" "VulkanCubePipeline.h" "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h" "include/QueueFamilyIndices.h" "include/SwapChainSupportDetails.h" "include/FileLoadingService.h" "include/Camera.h" "include/Vertex.h" "include/UniformBufferObject.h")
+add_executable (VulkanCubePipeline "VulkanCubePipeline.cpp" "VulkanCubePipeline.h" "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h" "include/QueueFamilyIndices.h" "include/SwapChainSupportDetails.h" "include/FileLoadingService.h" "include/Camera.h" "include/Vertex.h" "include/MvpBufferObject.h")
 target_include_directories(VulkanCubePipeline PRIVATE ${STB_INCLUDES})
 
 target_link_libraries(VulkanCubePipeline Vulkan::Vulkan glfw glm)

@@ -23,7 +23,7 @@
 #include "FileLoadingService.h"
 #include "Camera.h"
 #include "Vertex.h"
-#include "UniformBufferObject.h"
+#include "MvpBufferObject.h"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -90,8 +90,11 @@ private:
 	VkBuffer _indexBuffer;
 	VkDeviceMemory _indexBufferMemory;
 
-	std::vector<VkBuffer> _uniformBuffers;
-	std::vector<VkDeviceMemory> _uniformBuffersMemory;
+	std::vector<VkBuffer> _mvpBuffers;
+	std::vector<VkDeviceMemory> _mvpBuffersMemory;
+
+	std::vector<VkBuffer> _transformBuffers;
+	std::vector<VkDeviceMemory> _transformBuffersMemory;
 
 	VkImage _textureImage;
 	VkDeviceMemory _textureImageMemory;
@@ -112,44 +115,49 @@ private:
 	};
 
 	const std::vector<Vertex> _vertices = {
-		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, 
+		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 
-		{{-0.5f, -0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{0.5f, -0.5f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{-0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+		{{-0.5f, -0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, 
+		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, 
 
-		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{0.5f, -0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{-0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, 
+		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, -0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, 
+		{{-0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 
-	    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{-0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{-0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+	    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, 
+		{{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{-0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, 
+		{{-0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 
-		{{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{-0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+		{{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, 
 
-		{{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // top right
-		{{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // top left
-		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // bottom left
-		{{0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, // bottom right
+		{{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}, 
 	};
 
-	const std::vector<uint16_t> indices = {
+	const std::vector<uint16_t> _indices = {
 		0, 1, 2, 2, 3, 0,
 		4, 5, 6, 6, 7, 4,
 		8, 11, 10, 10, 9, 8,
 		12, 13, 14, 14, 15, 12,
 		16, 17, 18, 18, 19, 16,
 		20, 23, 22, 22, 21, 20
+	};
+
+	const std::vector<glm::mat4> _transformData = {
+		glm::identity<glm::mat4>(),
+		glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
 	};
 
 #ifdef NDEBUG
@@ -263,7 +271,8 @@ private:
 
 	void initVulkan();
 
-	void updateUniformBuffer(uint32_t currentImage);
+	void updateMvpUniformBuffer(uint32_t currentImage);
+	void updateTransformUniformBuffer(uint32_t currentImage);
 	void drawFrame();
 
 	void mainLoop();

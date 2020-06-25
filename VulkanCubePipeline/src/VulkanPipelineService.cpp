@@ -518,11 +518,11 @@ void VulkanPipelineService::createDescriptorSetLayout() {
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutBinding transformUboLayoutBinding{};
-    uboLayoutBinding.binding = 2;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+    transformUboLayoutBinding.binding = 2;
+    transformUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    transformUboLayoutBinding.descriptorCount = 1;
+    transformUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    transformUboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
     std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, samplerLayoutBinding, transformUboLayoutBinding };
 
@@ -1338,8 +1338,9 @@ void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
+    _transformData[0] = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-    uint32_t transformCollectionSize = static_cast<uint32_t>(_transformData.size());
+    uint32_t transformCollectionSize = sizeof(glm::mat4) * static_cast<uint32_t>(_transformData.size());
     void* data;
     vkMapMemory(_logicalDevice, _transformBuffersMemory[currentImage], 0, transformCollectionSize, 0, &data);
     memcpy(data, _transformData.data(), transformCollectionSize);

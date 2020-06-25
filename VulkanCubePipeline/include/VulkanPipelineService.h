@@ -155,7 +155,7 @@ private:
 		20, 23, 22, 22, 21, 20
 	};
 
-	const std::vector<glm::mat4> _transformData = {
+	std::vector<glm::mat4> _transformData = {
 		glm::identity<glm::mat4>(),
 		glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
 	};

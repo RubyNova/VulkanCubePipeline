@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
 
 find_path(STB_INCLUDES stb_image.h include)
 
@@ -16,6 +17,6 @@ find_path(STB_INCLUDES stb_image.h include)
 add_executable (VulkanCubePipeline "VulkanCubePipeline.cpp" "VulkanCubePipeline.h" "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h" "include/QueueFamilyIndices.h" "include/SwapChainSupportDetails.h" "include/FileLoadingService.h" "include/Vertex.h" "include/CameraBufferObject.h")
 target_include_directories(VulkanCubePipeline PRIVATE ${STB_INCLUDES})
 
-target_link_libraries(VulkanCubePipeline Vulkan::Vulkan glfw glm)
+target_link_libraries(VulkanCubePipeline Vulkan::Vulkan glfw glm jsoncpp_lib)
 
 # TODO: Add tests and install targets if needed.

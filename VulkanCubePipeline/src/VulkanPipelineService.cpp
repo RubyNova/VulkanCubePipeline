@@ -2,6 +2,28 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+void VulkanPipelineService::initVoxelData() {
+    Json::Value root;
+
+    auto path = std::filesystem::path("Resources") / "VoxelModels" / "Test.json";
+
+    std::ifstream streamReader;
+    streamReader.open(path);
+    Json::CharReaderBuilder builder;
+    builder["collectComments"] = true;
+    Json::String errs;
+
+    if (!parseFromStream(builder, streamReader, &root, &errs)) {
+        throw std::runtime_error(errs);
+    }
+
+    Json::Value array = root["vectorValues"];
+
+    for (size_t i = 0; i < array.size(); i++) {
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+    }
+}
+
 void VulkanPipelineService::initWindow() {
     glfwInit();
 
@@ -1058,7 +1080,7 @@ void VulkanPipelineService::createUniformBuffers() {
         createBuffer(cameraBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _cameraBuffers[i], _cameraBuffersMemory[i]);
     }
 
-    VkDeviceSize transformBufferSize = sizeof(glm::mat4) * 2;
+    VkDeviceSize transformBufferSize = sizeof(glm::mat4) * VOXEL_INSTANCE_COUNT;
 
     _transformBuffers.resize(_swapChainImages.size());
     _transformBuffersMemory.resize(_swapChainImages.size());
@@ -1110,7 +1132,7 @@ void VulkanPipelineService::createDescriptorSets() {
         VkDescriptorBufferInfo transformBufferInfo{};
         transformBufferInfo.buffer = _transformBuffers[i];
         transformBufferInfo.offset = 0;
-        transformBufferInfo.range = sizeof(glm::mat4) * 2;
+        transformBufferInfo.range = sizeof(glm::mat4) * VOXEL_INSTANCE_COUNT;
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1198,7 +1220,7 @@ void VulkanPipelineService::createCommandBuffers() {
 
         vkCmdBindDescriptorSets(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(_indices.size()), 2, 0, 0, 0);
+        vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(_indices.size()), VOXEL_INSTANCE_COUNT, 0, 0, 0);
 
         vkCmdEndRenderPass(_commandBuffers[i]);
 

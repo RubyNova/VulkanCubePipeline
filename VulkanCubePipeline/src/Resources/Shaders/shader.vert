@@ -7,7 +7,7 @@ layout(binding = 0) uniform CameraBufferObject {
 } ubo;
 
 layout(binding = 2) uniform TransformBufferObject {
-    mat4 transform[2];
+    mat4 transform[1024];
 } transforms;
 
 layout(location = 0) in vec3 inPosition;

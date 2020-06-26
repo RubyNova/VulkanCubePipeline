@@ -17,6 +17,8 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
+#include <json/json.h>
 
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
@@ -42,6 +44,7 @@ private:
 	const uint32_t _height = 1440 / 2;
 	static inline const int32_t INVALID_PHYISCAL_VK_DEVICE = -1;
 	static inline const int32_t MAX_FRAMES_IN_FLIGHT = 2;
+	static inline const uint32_t VOXEL_INSTANCE_COUNT = 8;
 	size_t _currentFrame = 0;
 
 	bool _frameBufferResized = false;
@@ -152,12 +155,12 @@ private:
 		20, 23, 22, 22, 21, 20
 	};
 
-	std::vector<glm::mat4> _transformData = {
-		glm::identity<glm::mat4>(),
-		glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
-	};
+	//std::vector<glm::mat4> _transformData = {
+	//	glm::identity<glm::mat4>(),
+	//	glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
+	//};
 
-	//std::vector<glm::mat4> _transformData;
+	std::vector<glm::mat4> _transformData;
 
 #ifdef NDEBUG
 	const bool _enableValidationLayers = false;

@@ -4,7 +4,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <glfw/glfw3.h>
 #include <vulkan/vulkan.h>
-
+#include <vulkan/vulkan.hpp>
+#include <stdio.h>
+#include <stdlib.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec4.hpp>
@@ -25,6 +27,8 @@
 #include "FileLoadingService.h"
 #include "Vertex.h"
 #include "CameraBufferObject.h"
+#include "VulkanTools.h"
+#include "VulkanInitializers.hpp"
 
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -46,6 +50,7 @@ private:
 	static inline const int32_t MAX_FRAMES_IN_FLIGHT = 2;
 	size_t _voxelInstanceCount = 0;
 	size_t _currentFrame = 0;
+	size_t _dynamicAlignment = 0;
 
 	bool _frameBufferResized = false;
 
@@ -228,6 +233,18 @@ private:
 		app->_frameBufferResized = true;
 	}
 
+	void* alignedAlloc(size_t size, size_t alignment) {
+		void* data = nullptr;
+#if defined(_MSC_VER) || defined(__MINGW32__)
+		data = _aligned_malloc(size, alignment);
+#else
+		int res = posix_memalign(&data, alignment, size);
+		if (res != 0)
+			data = nullptr;
+#endif
+		return data;
+	}
+
 	void initVoxelData();
 
 	void initWindow();
@@ -280,7 +297,7 @@ private:
 	void createTextureSampler();
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* data = nullptr);
 	VkCommandBuffer beginSingleTimeCommands();
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);

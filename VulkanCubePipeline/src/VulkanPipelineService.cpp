@@ -22,11 +22,9 @@ void VulkanPipelineService::initVoxelData() {
     //BUG: if you uncomment any of these, you'll see it fall over
     for (size_t i = 0; i < array.size(); i++) {
         _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+
+        //BUG: if this line is uncommented, it seems to align correctly? I'm guessing I screwed something up elsewhere.
         //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
-        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 10, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
-        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 15, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
-        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
-        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 25, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
     }
 
     _voxelInstanceCount = _transformData.size();
@@ -548,10 +546,10 @@ void VulkanPipelineService::createDescriptorSetLayout() {
     samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
+    
     VkDescriptorSetLayoutBinding transformUboLayoutBinding{};
     transformUboLayoutBinding.binding = 2;
-    transformUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    transformUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     transformUboLayoutBinding.descriptorCount = 1;
     transformUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     transformUboLayoutBinding.pImmutableSamplers = nullptr; // Optional
@@ -977,7 +975,7 @@ uint32_t VulkanPipelineService::findMemoryType(uint32_t typeFilter, VkMemoryProp
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void VulkanPipelineService::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+void VulkanPipelineService::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* data) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
@@ -998,6 +996,23 @@ void VulkanPipelineService::createBuffer(VkDeviceSize size, VkBufferUsageFlags u
 
     if (vkAllocateMemory(_logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate buffer memory!");
+    }
+
+    if (data != nullptr)
+    {
+        void* mapped;
+        vkMapMemory(_logicalDevice, bufferMemory, 0, size, 0, &mapped);
+        memcpy(mapped, data, size);
+        // If host coherency hasn't been requested, do a manual flush to make writes visible
+        if ((properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
+        {
+            VkMappedMemoryRange mappedRange = vks::initializers::mappedMemoryRange();
+            mappedRange.memory = bufferMemory;
+            mappedRange.offset = 0;
+            mappedRange.size = size;
+            vkFlushMappedMemoryRanges(_logicalDevice, 1, &mappedRange);
+        }
+        vkUnmapMemory(_logicalDevice, bufferMemory);
     }
 
     vkBindBufferMemory(_logicalDevice, buffer, bufferMemory, 0);
@@ -1097,13 +1112,42 @@ void VulkanPipelineService::createUniformBuffers() {
         createBuffer(cameraBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _cameraBuffers[i], _cameraBuffersMemory[i]);
     }
 
-    VkDeviceSize transformBufferSize = sizeof(glm::mat4) * _voxelInstanceCount;
-
     _transformBuffers.resize(_swapChainImages.size());
     _transformBuffersMemory.resize(_swapChainImages.size());
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(_physicalDevice, &props);
+
+    size_t minUboAlignment = props.limits.minUniformBufferOffsetAlignment;
+    _dynamicAlignment = sizeof(glm::mat4);
+
+    if (minUboAlignment > 0) {
+        _dynamicAlignment = (_dynamicAlignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
+    }
+
+    VkDeviceSize transformBufferSize = _voxelInstanceCount * _dynamicAlignment;
+
+
+    glm::mat4* temp = (glm::mat4*)alignedAlloc(transformBufferSize, _dynamicAlignment);
+
+    uint32_t dim = static_cast<uint32_t>(pow(_transformData.size(), (1.0f / 3.0f)));
+    glm::vec3 offset(5.0f);
+
+    for (uint32_t x = 0; x < dim; x++)
+    {
+        for (uint32_t y = 0; y < dim; y++)
+        {
+            for (uint32_t z = 0; z < dim; z++)
+            {
+                uint32_t index = x * dim * dim + y * dim + z;
+                auto fuck = *(glm::mat4*)(((uint64_t)temp + (index * _dynamicAlignment)));
+                // Aligned offset
+                *(glm::mat4*)(((uint64_t)temp + (index * _dynamicAlignment))) = _transformData[index];
+            }
+        }
+    }
 
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
-        createBuffer(transformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _transformBuffers[i], _transformBuffersMemory[i]);
+        createBuffer(transformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _transformBuffers[i], _transformBuffersMemory[i], temp);
     }
 
     VkDeviceSize lightPosBufferSize = sizeof(glm::vec3);
@@ -1122,7 +1166,7 @@ void VulkanPipelineService::createDescriptorPool() {
     poolSizes[0].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
-    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     poolSizes[2].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
     poolSizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[3].descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
@@ -1196,7 +1240,7 @@ void VulkanPipelineService::createDescriptorSets() {
         descriptorWrites[2].dstSet = _descriptorSets[i];
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         descriptorWrites[2].descriptorCount = 1;
         descriptorWrites[2].pBufferInfo = &transformBufferInfo;
         descriptorWrites[2].pImageInfo = nullptr; // Optional
@@ -1261,9 +1305,15 @@ void VulkanPipelineService::createCommandBuffers() {
 
         vkCmdBindIndexBuffer(_commandBuffers[i], _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdBindDescriptorSets(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(_indices.size()), _voxelInstanceCount, 0, 0, 0);
+
+        for (size_t j = 0; j < _voxelInstanceCount; j++) {
+            uint32_t dynamicOffset = j * static_cast<uint32_t>(_dynamicAlignment);
+            vkCmdBindDescriptorSets(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[i], 1, &dynamicOffset);
+            vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+        }
+
+
 
         vkCmdEndRenderPass(_commandBuffers[i]);
 
@@ -1461,7 +1511,8 @@ void VulkanPipelineService::drawFrame() {
     _imagesInFlight[imageIndex] = _inFlightFences[_currentFrame];
 
     updateCameraUniformBuffer(imageIndex);
-    updateTransformUniformBuffer(imageIndex);
+    //updateTransformUniformBuffer(imageIndex);
+    //updateDynamicUniformBuffer(imageIndex);
     updateLightPosUniformBuffer(imageIndex);
 
     VkSubmitInfo submitInfo{};

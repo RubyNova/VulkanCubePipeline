@@ -87,6 +87,9 @@ private:
 	VkBuffer _vertexBuffer;
 	VkDeviceMemory _vertexBufferMemory;
 
+	VkBuffer _instanceBuffer;
+	VkDeviceMemory _instanceBufferMemory;
+
 	VkBuffer _indexBuffer;
 	VkDeviceMemory _indexBufferMemory;
 
@@ -189,7 +192,7 @@ private:
 	//	glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, 1.0f, 0.0f))
 	//};
 
-	std::vector<glm::mat4> _transformData;
+	std::vector<glm::vec3> _transformData;
 
 #ifdef NDEBUG
 	const bool _enableValidationLayers = false;

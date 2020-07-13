@@ -7,7 +7,7 @@ layout(binding = 0) uniform CameraBufferObject {
 } ubo;
 
 layout(binding = 2) uniform TransformBufferObject {
-    mat4 transform[1024];
+    mat4 transform[40000]; //I set this to an insane value as one of my many attempts to make it behave
 } transforms;
 
 layout(location = 0) in vec3 inPosition;
@@ -21,9 +21,11 @@ layout(location = 2) out vec3 normal;
 layout(location = 3) out vec3 fragPos;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * transforms.transform[gl_InstanceIndex] * vec4(inPosition, 1.0);
+    vec4 fragPos4 = transforms.transform[gl_InstanceIndex] * vec4(inPosition, 1.0);
+    gl_Position = ubo.proj * ubo.view * fragPos4;
+
     fragColour = inColour;
     fragTexCoord = inTexCoord;
-    normal = mat3(transpose(inverse(transforms.transform[gl_InstanceIndex]))) * inNormal;  
-    fragPos = vec3(transforms.transform[gl_InstanceIndex] * vec4(inPosition, 1.0));
+    normal = vec3(transforms.transform[gl_InstanceIndex] * vec4(inNormal, 0.0));
+    fragPos = vec3(fragPos4) / fragPos4.w;
 }

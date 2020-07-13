@@ -19,11 +19,19 @@ void VulkanPipelineService::initVoxelData() {
 
     Json::Value array = root["vectorValues"];
 
-    _voxelInstanceCount = array.size();
-
-    for (size_t i = 0; i < _voxelInstanceCount; i++) {
+    //BUG: if you uncomment any of these, you'll see it fall over
+    for (size_t i = 0; i < array.size(); i++) {
         _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 10, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 15, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 25, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
     }
+
+    _voxelInstanceCount = _transformData.size();
+
+    std::cout << "Detected " << _voxelInstanceCount << " voxels. This will result in " << _voxelInstanceCount * _vertices.size() << " unique vertices, " << _voxelInstanceCount * _indices.size() << " indices, and " << _voxelInstanceCount * (_indices.size() / 3) << " faces in the world." << std::endl;
 }
 
 void VulkanPipelineService::initWindow() {
@@ -1157,7 +1165,7 @@ void VulkanPipelineService::createDescriptorSets() {
         VkDescriptorBufferInfo transformBufferInfo{};
         transformBufferInfo.buffer = _transformBuffers[i];
         transformBufferInfo.offset = 0;
-        transformBufferInfo.range = sizeof(glm::mat4) * _voxelInstanceCount;
+        transformBufferInfo.range = sizeof(glm::mat4);
 
         VkDescriptorBufferInfo lightPosBufferInfo{};
         lightPosBufferInfo.buffer = _lightPosBuffers[i];
@@ -1300,8 +1308,6 @@ void VulkanPipelineService::cleanupSwapChain() {
     }
     
     vkFreeCommandBuffers(_logicalDevice, _commandPool, static_cast<uint32_t>(_commandBuffers.size()), _commandBuffers.data());
-    vkDestroyDescriptorSetLayout(_logicalDevice, _descriptorSetLayout, nullptr);
-
 
     vkDestroyPipeline(_logicalDevice, _graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(_logicalDevice, _pipelineLayout, nullptr);
@@ -1316,6 +1322,10 @@ void VulkanPipelineService::cleanupSwapChain() {
     for (size_t i = 0; i < _swapChainImages.size(); i++) {
         vkDestroyBuffer(_logicalDevice, _cameraBuffers[i], nullptr);
         vkFreeMemory(_logicalDevice, _cameraBuffersMemory[i], nullptr);
+        vkDestroyBuffer(_logicalDevice, _transformBuffers[i], nullptr);
+        vkFreeMemory(_logicalDevice, _transformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(_logicalDevice, _lightPosBuffers[i], nullptr);
+        vkFreeMemory(_logicalDevice, _lightPosBuffersMemory[i], nullptr);
     }
 
     vkDestroyDescriptorPool(_logicalDevice, _descriptorPool, nullptr);
@@ -1379,8 +1389,8 @@ void VulkanPipelineService::updateCameraUniformBuffer(uint32_t currentImage) {
 
     CameraBufferObject ubo{};
     //should be 4, 4, 4
-    ubo.view = glm::lookAt(glm::vec3(4.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
+    ubo.view = glm::lookAt(glm::vec3(12.0f, 12.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 65565.0f);
     ubo.proj[1][1] *= -1;
 
     void* data;
@@ -1391,17 +1401,26 @@ void VulkanPipelineService::updateCameraUniformBuffer(uint32_t currentImage) {
 
 void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
-
+    static auto previousTime = std::chrono::high_resolution_clock::now();
+    static std::chrono::duration<float, std::chrono::seconds::period> delta;
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    delta = currentTime - previousTime;
+    float time = delta.count();
 
-    //_transformData[0] = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //for (size_t j = 0; j < _transformData.size(); j++)
+    //{
+    //    _transformData[j] = glm::rotate(_transformData[j], time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //}
+
+    //_transformData[5] = glm::rotate(_transformData[5], time * glm::radians(0.2f), glm::vec3(0.0f, 0.0f, 1.0f));
 
     uint32_t transformCollectionSize = sizeof(glm::mat4) * static_cast<uint32_t>(_transformData.size());
     void* data;
     vkMapMemory(_logicalDevice, _transformBuffersMemory[currentImage], 0, transformCollectionSize, 0, &data);
     memcpy(data, _transformData.data(), transformCollectionSize);
     vkUnmapMemory(_logicalDevice, _transformBuffersMemory[currentImage]);
+
+    previousTime = std::chrono::high_resolution_clock::now();
 }
 
 void VulkanPipelineService::updateLightPosUniformBuffer(uint32_t currentImage) {
@@ -1411,7 +1430,7 @@ void VulkanPipelineService::updateLightPosUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     //_transformData[0] = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    glm::vec3 lightPos(0.0f, 2.0f, 2.0f);
+    glm::vec3 lightPos(4.0f, 4.0f, 4.0f);
     uint32_t transformCollectionSize = sizeof(glm::vec3);
     void* data;
     vkMapMemory(_logicalDevice, _lightPosBuffersMemory[currentImage], 0, transformCollectionSize, 0, &data);

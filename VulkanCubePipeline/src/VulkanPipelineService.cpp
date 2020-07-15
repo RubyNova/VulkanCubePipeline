@@ -24,7 +24,26 @@ void VulkanPipelineService::initVoxelData() {
         _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
 
         //BUG: if this line is uncommented, it seems to align correctly? I'm guessing I screwed something up elsewhere.
-        //_transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() - 20, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() - 20, array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() + 20, array[static_cast<int>(i)][2].asFloat())));
+
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 40, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() - 40, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() - 40, array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() + 40, array[static_cast<int>(i)][2].asFloat())));
+
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 60, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() - 60, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() - 60, array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() + 60, array[static_cast<int>(i)][2].asFloat())));
+
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() + 80, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat() - 80, array[static_cast<int>(i)][1].asFloat(), array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() - 80, array[static_cast<int>(i)][2].asFloat())));
+        _transformData.emplace_back(glm::translate(glm::identity<glm::mat4>(), glm::vec3(array[static_cast<int>(i)][0].asFloat(), array[static_cast<int>(i)][1].asFloat() + 80, array[static_cast<int>(i)][2].asFloat())));
+
     }
 
     _voxelInstanceCount = _transformData.size();
@@ -1433,20 +1452,22 @@ void VulkanPipelineService::initVulkan() {
 
 void VulkanPipelineService::updateCameraUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
-
+    static auto previousTime = std::chrono::high_resolution_clock::now();
+    static std::chrono::duration<float, std::chrono::seconds::period> delta;
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    delta = currentTime - previousTime;
+    float time = delta.count();
 
-    CameraBufferObject ubo{};
-    //should be 4, 4, 4
-    ubo.view = glm::lookAt(glm::vec3(12.0f, 12.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 65565.0f);
-    ubo.proj[1][1] *= -1;
-
+    //should be 12, 12, 20
+    _ubo.view = glm::rotate(_ubo.view, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); //glm::lookAt(glm::vec3(40.0f, 40.0f, 56.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    _ubo.proj = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 65565.0f);
+    _ubo.proj[1][1] *= -1;
     void* data;
-    vkMapMemory(_logicalDevice, _cameraBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
+    vkMapMemory(_logicalDevice, _cameraBuffersMemory[currentImage], 0, sizeof(_ubo), 0, &data);
+    memcpy(data, &_ubo, sizeof(_ubo));
     vkUnmapMemory(_logicalDevice, _cameraBuffersMemory[currentImage]);
+
+    previousTime = std::chrono::high_resolution_clock::now();
 }
 
 void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) {
@@ -1456,7 +1477,6 @@ void VulkanPipelineService::updateTransformUniformBuffer(uint32_t currentImage) 
     auto currentTime = std::chrono::high_resolution_clock::now();
     delta = currentTime - previousTime;
     float time = delta.count();
-
     //for (size_t j = 0; j < _transformData.size(); j++)
     //{
     //    _transformData[j] = glm::rotate(_transformData[j], time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -1608,6 +1628,7 @@ void VulkanPipelineService::cleanup() {
 }
 
 VulkanPipelineService::VulkanPipelineService() noexcept : _window(nullptr, nullptr), _debugMessenger(VK_NULL_HANDLE), _instance(VK_NULL_HANDLE), _physicalDevice(VK_NULL_HANDLE) {
+    _ubo.proj[1][1] *= -1;
 }
 
 void VulkanPipelineService::launch() {

@@ -19,4 +19,10 @@ target_include_directories(VulkanCubePipeline PRIVATE ${STB_INCLUDES})
 
 target_link_libraries(VulkanCubePipeline Vulkan::Vulkan glfw glm jsoncpp_lib)
 
+# Library target
+add_library (MiniRenderVulkanPipeline "src/VulkanPipelineService.cpp" "include/VulkanPipelineService.h" "include/QueueFamilyIndices.h" "include/SwapChainSupportDetails.h" "include/FileLoadingService.h" "include/Vertex.h" "include/CameraBufferObject.h" "src/VulkanTools.cpp" "include/VulkanTools.h" "include/VulkanInitializers.hpp")
+target_include_directories(MiniRenderVulkanPipeline PRIVATE ${STB_INCLUDES})
+
+target_link_libraries(MiniRenderVulkanPipeline Vulkan::Vulkan glfw glm jsoncpp_lib)
+
 # TODO: Add tests and install targets if needed.
